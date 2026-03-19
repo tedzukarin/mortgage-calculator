@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +7,7 @@
     <!-- Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- jQuery -->
+    <!-- jQuery (обязательно для калькулятора) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <style>
@@ -68,31 +68,14 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        .error-container {
-            color: var(--tg-theme-destructive-text-color, #dc3545);
-            text-align: center;
-            padding: 2rem;
-        }
-        
-        .retry-button {
-            margin-top: 1.5rem;
-            padding: 12px 24px;
-            background: var(--tg-theme-button-color, #667eea);
-            color: var(--tg-theme-button-text-color, white);
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            max-width: 280px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="calculator-wrapper">
-            <div class="shadow-wrapper" style="margin:0 auto;">
+            <!-- Тот самый shadow-wrapper с style="margin: auto" как в их примере -->
+            <div class="shadow-wrapper" style="margin: auto; min-height: 600px;">
+                <!-- Прелоадер -->
                 <div id="loader" class="loader">
                     <div class="spinner"></div>
                     <p style="color: var(--tg-theme-hint-color, #999);">Загрузка калькулятора...</p>
@@ -101,60 +84,52 @@
         </div>
     </div>
 
+    <!-- ИХ строка с правильным параметром -->
     <script src="https://form.markains.ru/insuranceForm.js?p=019d01a2-d2bd-7d1f-bf82-00da44fd16d3"></script>
 
+    <!-- ИХ упрощенный код инициализации + наша Telegram логика -->
     <script>
+        // Telegram Mini App инициализация
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         
+        // Кнопка закрытия
         tg.MainButton.setText('Закрыть');
         tg.MainButton.onClick(() => tg.close());
         tg.MainButton.hide();
 
-        function showError(message) {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.innerHTML = `
-                    <div class="error-container">
-                        <span style="font-size: 48px; display: block; margin-bottom: 16px;">⚠️</span>
-                        <h3 style="margin-bottom: 12px;">Ошибка загрузки</h3>
-                        <p style="color: var(--tg-theme-hint-color, #666);">${message}</p>
-                        <button class="retry-button" onclick="location.reload()">
-                            🔄 Обновить
+        // ИХ способ инициализации калькулятора
+        document.addEventListener('DOMContentLoaded', function () {
+            // Скрываем прелоадер через секунду (на всякий случай)
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                if (loader) {
+                    loader.style.display = 'none';
+                }
+            }, 1000);
+            
+            // Вызываем их функцию
+            if (typeof attachInsuranceForm === 'function') {
+                attachInsuranceForm('.shadow-wrapper');
+                // Показываем кнопку закрытия
+                setTimeout(() => {
+                    tg.MainButton.show();
+                }, 2000);
+            } else {
+                console.error('Функция attachInsuranceForm не найдена');
+                document.querySelector('.shadow-wrapper').innerHTML = `
+                    <div style="color: #dc3545; text-align: center; padding: 2rem;">
+                        <h3>Ошибка загрузки калькулятора</h3>
+                        <button onclick="location.reload()" style="margin-top: 1rem; padding: 10px 20px; background: var(--tg-theme-button-color, #667eea); color: white; border: none; border-radius: 5px;">
+                            Обновить
                         </button>
                     </div>
                 `;
             }
-        }
+        });
 
-        function hideLoader() {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.display = 'none';
-            }
-        }
-
-        if (typeof jQuery === 'undefined') {
-            showError('Не удалось загрузить jQuery');
-        } else {
-            setTimeout(() => {
-                if (typeof attachInsuranceForm === 'function') {
-                    try {
-                        attachInsuranceForm('.shadow-wrapper');
-                        hideLoader();
-                        setTimeout(() => {
-                            tg.MainButton.show();
-                        }, 1000);
-                    } catch (error) {
-                        showError('Ошибка инициализации');
-                    }
-                } else {
-                    showError('Не удалось загрузить калькулятор');
-                }
-            }, 1500);
-        }
-
+        // Обработка изменения размера экрана
         tg.onEvent('viewportChanged', () => {
             tg.expand();
         });
