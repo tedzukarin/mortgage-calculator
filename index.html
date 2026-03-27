@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- Пробуем загрузить Telegram Web App, но не падаем, если не загрузился -->
+    <!-- Пробуем загрузить Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js" onerror="handleTelegramError()"></script>
     
     <!-- jQuery -->
@@ -70,9 +70,10 @@
     <script src="https://form.markains.ru/insuranceForm.js?p=019d01a2-d2bd-7d1f-bf82-00da44fd16d3"></script>
 
     <script>
-        // Создаем заглушку для Telegram Web App, если не загрузился
+        // Флаг, чтобы не вызывать функцию дважды
+        let isInitialized = false;
         let tg = null;
-        
+
         function handleTelegramError() {
             console.warn('Telegram Web App не загрузился, используем заглушку');
             document.body.insertAdjacentHTML('afterbegin', `
@@ -81,81 +82,77 @@
                 </div>
             `);
             
-            // Создаем заглушку
             tg = {
-                ready: () => console.log('Telegram stub: ready'),
-                expand: () => console.log('Telegram stub: expand'),
+                ready: () => {},
+                expand: () => {},
                 close: () => window.close(),
                 MainButton: {
                     show: () => console.log('Telegram stub: show main button'),
-                    hide: () => console.log('Telegram stub: hide main button'),
-                    setText: () => console.log('Telegram stub: set text'),
-                    onClick: (cb) => { console.log('Telegram stub: onClick'); }
+                    hide: () => {},
+                    setText: () => {},
+                    onClick: () => {}
                 },
-                onEvent: () => console.log('Telegram stub: onEvent')
+                onEvent: () => {}
             };
-            
-            initCalculator();
         }
-        
-        // Ждем загрузки Telegram Web App
-        window.addEventListener('load', function() {
-            if (window.Telegram && window.Telegram.WebApp) {
-                tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-                tg.MainButton.setText('Закрыть');
-                tg.MainButton.onClick(() => tg.close());
-                tg.MainButton.hide();
-                tg.onEvent('viewportChanged', () => tg.expand());
-                console.log('✅ Telegram Web App загружен');
-                initCalculator();
-            } else if (!tg) {
-                // Если через 2 секунды все еще нет Telegram, создаем заглушку
-                setTimeout(() => {
-                    if (!window.Telegram || !window.Telegram.WebApp) {
-                        handleTelegramError();
-                    }
-                }, 2000);
-            }
-        });
-        
+
         function initCalculator() {
-            console.log('Инициализация калькулятора...');
-            
-            // Проверка jQuery
-            if (typeof jQuery === 'undefined') {
-                console.error('❌ jQuery не загружен');
-                showError('jQuery не загружен. Проверьте подключение к интернету.');
+            // Защита от двойного вызова
+            if (isInitialized) {
+                console.log('Калькулятор уже инициализирован, пропускаем');
                 return;
             }
             
-            // Даем время на загрузку скрипта калькулятора
-            setTimeout(function() {
-                if (typeof attachInsuranceForm === 'function') {
-                    console.log('✅ attachInsuranceForm найдена');
-                    
-                    const loader = document.getElementById('loader');
-                    if (loader) loader.style.display = 'none';
-                    
-                    try {
-                        attachInsuranceForm('.shadow-wrapper');
-                        console.log('✅ Калькулятор запущен');
-                        
-                        if (tg && tg.MainButton) {
-                            setTimeout(() => tg.MainButton.show(), 2000);
-                        }
-                    } catch (error) {
-                        console.error('Ошибка:', error);
-                        showError('Ошибка при запуске: ' + error.message);
+            console.log('Инициализация калькулятора...');
+            
+            if (typeof jQuery === 'undefined') {
+                console.error('❌ jQuery не загружен');
+                showError('jQuery не загружен');
+                return;
+            }
+            
+            if (typeof attachInsuranceForm !== 'function') {
+                console.error('❌ attachInsuranceForm не найдена');
+                showError('Не удалось загрузить калькулятор');
+                return;
+            }
+            
+            // Помечаем как инициализированный
+            isInitialized = true;
+            
+            // Скрываем прелоадер
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            
+            try {
+                // Очищаем контейнер, если там уже что-то есть
+                const container = document.querySelector('.shadow-wrapper');
+                if (container && container.children.length > 1) {
+                    // Если есть лишние элементы, удаляем
+                    while (container.children.length > 1) {
+                        container.removeChild(container.lastChild);
                     }
-                } else {
-                    console.error('❌ attachInsuranceForm не найдена');
-                    showError('Не удалось загрузить калькулятор. Проверьте доступ к form.markains.ru');
                 }
-            }, 2000);
+                
+                // Вызываем функцию только один раз
+                attachInsuranceForm('.shadow-wrapper');
+                console.log('✅ Калькулятор успешно запущен');
+                
+                // Показываем кнопку закрытия через пару секунд
+                if (tg && tg.MainButton) {
+                    setTimeout(() => {
+                        tg.MainButton.show();
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                isInitialized = false;
+                showError('Ошибка при запуске: ' + error.message);
+            }
         }
-        
+
         function showError(message) {
             const loader = document.getElementById('loader');
             if (loader) {
@@ -168,39 +165,42 @@
                 `;
             }
         }
-        
-        // Если скрипт Telegram Web App загрузился нормально, обработаем это
-        if (window.Telegram && window.Telegram.WebApp) {
-            const tgReal = window.Telegram.WebApp;
-            tgReal.ready();
-            tgReal.expand();
-            tgReal.MainButton.setText('Закрыть');
-            tgReal.MainButton.onClick(() => tgReal.close());
-            tgReal.MainButton.hide();
-            tgReal.onEvent('viewportChanged', () => tgReal.expand());
-            tg = tgReal;
-            window.addEventListener('load', initCalculator);
-        } else {
-            // Если скрипт еще не загрузился, ждем
-            window.addEventListener('load', function() {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    const tgReal = window.Telegram.WebApp;
-                    tgReal.ready();
-                    tgReal.expand();
-                    tgReal.MainButton.setText('Закрыть');
-                    tgReal.MainButton.onClick(() => tgReal.close());
-                    tgReal.MainButton.hide();
-                    tg = tgReal;
-                }
-                initCalculator();
-            });
+
+        // Настройка Telegram Web App
+        function setupTelegram() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tgReal = window.Telegram.WebApp;
+                tgReal.ready();
+                tgReal.expand();
+                tgReal.MainButton.setText('Закрыть');
+                tgReal.MainButton.onClick(() => tgReal.close());
+                tgReal.MainButton.hide();
+                tgReal.onEvent('viewportChanged', () => tgReal.expand());
+                tg = tgReal;
+                console.log('✅ Telegram Web App настроен');
+            }
         }
+
+        // Запускаем всё после полной загрузки страницы
+        window.addEventListener('load', function() {
+            setupTelegram();
+            
+            // Даем время на загрузку скрипта калькулятора
+            setTimeout(initCalculator, 1500);
+        });
+        
+        // Если Telegram скрипт не загрузился, вызываем заглушку
+        setTimeout(function() {
+            if (!window.Telegram || !window.Telegram.WebApp) {
+                if (!tg) handleTelegramError();
+            }
+        }, 2000);
         
         // Проверка загрузки скрипта калькулятора
         const script = document.querySelector('script[src*="insuranceForm.js"]');
         if (script) {
             script.onerror = function() {
-                showError('Не удалось загрузить скрипт калькулятора. Проверьте доступ к form.markains.ru');
+                showError('Не удалось загрузить скрипт калькулятора');
             };
         }
     </script>
