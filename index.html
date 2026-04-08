@@ -13,18 +13,15 @@
 
         html, body {
             height: 100%;
-            overflow-x: hidden;
+            background: #f5f7fa;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f7fa;
-            color: #1f2d3d;
         }
 
         .container {
             height: 100%;
-            width: 100%;
             overflow-y: auto;
             padding: 16px;
         }
@@ -89,15 +86,15 @@
     </div>
 </div>
 
-<!-- Эмуляция Telegram Web App (чтобы не было ошибки) -->
+<!-- 1. Эмуляция Telegram WebApp -->
 <script>
     (function() {
         if (!window.Telegram) window.Telegram = {};
         if (!window.Telegram.WebApp) {
             window.Telegram.WebApp = {
-                ready: () => console.log('Telegram WebApp ready (stub)'),
-                expand: () => console.log('Telegram expand (stub)'),
-                close: () => console.log('Telegram close (stub)'),
+                ready: () => console.log('Telegram ready'),
+                expand: () => console.log('Telegram expand'),
+                close: () => console.log('Telegram close'),
                 MainButton: {
                     show: () => console.log('MainButton show'),
                     hide: () => console.log('MainButton hide'),
@@ -107,66 +104,56 @@
                 onEvent: () => console.log('Telegram event')
             };
         }
-        console.log('✅ Telegram WebApp готов (локальная заглушка)');
     })();
 </script>
 
-<!-- Подключаем jQuery через надёжный CDN -->
+<!-- 2. Принудительная загрузка jQuery ДО ВСЕГО -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<!-- Основной скрипт калькулятора (тот самый, который работает) -->
-<script src="https://form.markains.ru/insuranceForm.js?p=019d01a2-d2bd-7d1f-bf82-00da44fd16d3"></script>
-
+<!-- 3. Ждём jQuery и только потом подключаем калькулятор -->
 <script>
-    let isInitialized = false;
+    function startCalculator() {
+        if (typeof jQuery === 'undefined') {
+            console.warn('jQuery ещё не загружен, ждём...');
+            setTimeout(startCalculator, 100);
+            return;
+        }
 
-    function hideLoader() {
-        const loader = document.getElementById('loader');
-        if (loader) loader.style.display = 'none';
+        console.log('✅ jQuery загружен');
+
+        // Динамически подключаем скрипт калькулятора
+        const script = document.createElement('script');
+        script.src = 'https://form.markains.ru/insuranceForm.js?p=019d01a2-d2bd-7d1f-bf82-00da44fd16d3';
+        script.onload = function() {
+            console.log('✅ Скрипт калькулятора загружен');
+            setTimeout(() => {
+                if (typeof attachInsuranceForm === 'function') {
+                    document.getElementById('loader')?.remove();
+                    attachInsuranceForm('.shadow-wrapper');
+                    console.log('✅ Калькулятор запущен');
+                } else {
+                    showError('Функция калькулятора не найдена');
+                }
+            }, 100);
+        };
+        script.onerror = () => showError('Не удалось загрузить калькулятор');
+        document.head.appendChild(script);
     }
 
-    function showError(message) {
-        const container = document.querySelector('.shadow-wrapper');
-        if (container) {
-            container.innerHTML = `
+    function showError(msg) {
+        const wrapper = document.querySelector('.shadow-wrapper');
+        if (wrapper) {
+            wrapper.innerHTML = `
                 <div class="error-box">
                     <strong>❌ Ошибка</strong><br><br>
-                    ${message}<br><br>
-                    <button onclick="location.reload()">Обновить страницу</button>
+                    ${msg}<br><br>
+                    <button onclick="location.reload()">Обновить</button>
                 </div>
             `;
         }
     }
 
-    function initCalculator() {
-        if (isInitialized) return;
-
-        if (typeof jQuery === 'undefined') {
-            showError('Не загрузился jQuery. Проверьте интернет.');
-            return;
-        }
-
-        if (typeof attachInsuranceForm !== 'function') {
-            console.warn('attachInsuranceForm ещё не готова, ждём...');
-            setTimeout(initCalculator, 500);
-            return;
-        }
-
-        isInitialized = true;
-        hideLoader();
-
-        try {
-            attachInsuranceForm('.shadow-wrapper');
-            console.log('✅ Калькулятор запущен');
-        } catch (e) {
-            console.error(e);
-            showError('Ошибка при запуске калькулятора: ' + e.message);
-        }
-    }
-
-    window.addEventListener('load', function() {
-        setTimeout(initCalculator, 300);
-    });
+    window.addEventListener('load', startCalculator);
 </script>
 </body>
 </html>
