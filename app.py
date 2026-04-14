@@ -1,17 +1,21 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
 
-# Единственный маршрут - главная страница
+# Главная страница (Telegram)
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-if __name__ == '__main__':
-    # Для разработки
-    app.run(debug=True, host='0.0.0.0', port=5000)
+# Страница для Max мессенджера
+@app.route('/max')
+def max_page():
+    # Можно передать параметры, если нужно
+    platform = request.args.get('platform', 'max')
+    return render_template('max.html')
 
-    # Для продакшена закомментируйте строку выше и раскомментируйте эту:
-    # app.run(host='0.0.0.0', port=5000)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
